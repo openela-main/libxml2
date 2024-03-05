@@ -7,7 +7,7 @@
 
 Name:           libxml2
 Version:        2.9.7
-Release:        16%{?dist}.1
+Release:        18%{?dist}
 Summary:        Library providing XML and HTML support
 
 License:        MIT
@@ -56,10 +56,12 @@ Patch18:        libxml2-2.9.7-CVE-2016-3709.patch
 Patch19:        libxml2-2.9.7-CVE-2022-40303.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=2136568
 Patch20:        libxml2-2.9.7-CVE-2022-40304.patch
-# https://bugzilla.redhat.com/show_bug.cgi?id=2186691
+# https://bugzilla.redhat.com/show_bug.cgi?id=2186692
 Patch21:         libxml2-2.9.13-CVE-2023-28484.patch
 Patch22:         libxml2-2.9.13-CVE-2023-28484.2.patch
 Patch23:         libxml2-2.9.7-CVE-2023-29469.patch
+# https://issues.redhat.com/browse/RHEL-5179
+Patch24:         libxml2-2.11.0-fix-CVE-2023-39615.patch
 
 BuildRequires:  gcc
 BuildRequires:  cmake-rpm-macros
@@ -231,9 +233,12 @@ gzip -9 -c doc/libxml2-api.xml > doc/libxml2-api.xml.gz
 %{python3_sitearch}/libxml2mod.so
 
 %changelog
-* Fri Jul 14 2023 David King <amigadave@amigadave.com> - 2.9.7-16.1
-- Fix CVE-2023-28484 (#2186691)
-- Fix CVE-2023-29469 (#2186691)
+* Thu Sep 14 2023 David King <amigadave@amigadave.com> - 2.9.7-18
+- Fix CVE-2023-39615 (RHEL-5179)
+
+* Fri Jul 14 2023 David King <amigadave@amigadave.com> - 2.9.7-17
+- Fix CVE-2023-28484 (#2186692)
+- Fix CVE-2023-29469 (#2186692)
 
 * Wed Nov 02 2022 David King <dking@redhat.com> - 2.9.7-16
 - Fix CVE-2022-40303 (#2136563)
