@@ -7,7 +7,7 @@
 
 Name:           libxml2
 Version:        2.9.7
-Release:        20%{?dist}
+Release:        21%{?dist}.1
 Summary:        Library providing XML and HTML support
 
 License:        MIT
@@ -72,6 +72,13 @@ Patch27:        libxml2-2.9.13-CVE-2024-56171.patch
 Patch28:        libxml2-2.9.13-CVE-2025-24928.patch
 # https://issues.redhat.com/browse/RHEL-88198
 Patch29:         libxml2-2.9.13-CVE-2025-32414.patch
+# https://issues.redhat.com/browse/RHEL-74345
+Patch30:         libxml2-clamp-output-bytes-overflow.patch
+# https://issues.redhat.com/browse/RHEL-96498
+Patch31:         libxml2-2.9.13-CVE-2025-6021.patch
+# https://issues.redhat.com/browse/RHEL-96398
+# https://issues.redhat.com/browse/RHEL-96424
+Patch32:        libxml2-2.9.13-CVE-2025-49794.patch
 
 BuildRequires:  gcc
 BuildRequires:  cmake-rpm-macros
@@ -243,6 +250,14 @@ gzip -9 -c doc/libxml2-api.xml > doc/libxml2-api.xml.gz
 %{python3_sitearch}/libxml2mod.so
 
 %changelog
+* Mon Jun 16 2025 David King <dking@redhat.com> - 2.9.7-21.1
+- Fix CVE-2025-6021 (RHEL-96498)
+- Fix CVE-2025-49794 (RHEL-96398)
+- Fix CVE-2025-49796 (RHEL-96424)
+
+* Fri Jun 13 2025 David King <dking@redhat.com> - 2.9.7-21
+- Fix integer overflow (RHEL-74345)
+
 * Thu Jun 05 2025 David King <dking@redhat.com> - 2.9.7-20
 - Fix CVE-2025-32414 (RHEL-88198)
 
