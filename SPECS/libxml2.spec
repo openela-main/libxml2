@@ -1,6 +1,6 @@
 Name:           libxml2
 Version:        2.12.5
-Release:        10%{?dist}.2
+Release:        10%{?dist}.3
 Summary:        Library providing XML and HTML support
 
 # list.c, dict.c and few others use ISC-Veillard
@@ -44,6 +44,9 @@ Patch12:        libxml2-2.12.5-CVE-2024-34459.patch
 # https://gitlab.gnome.org/GNOME/libxml2/-/merge_requests/321
 # https://redhat.atlassian.net/browse/RHEL-182007
 Patch13:        libxml2-2.12.5-CVE-2025-6170.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/c2e233fc1b341685fc99621b2768b503f777a72e
+# https://issues.redhat.com/browse/RHEL-215571
+Patch14:        libxml2-2.12.5-CVE-2026-11979.patch
 
 BuildRequires:  cmake-rpm-macros
 BuildRequires:  gcc
@@ -184,6 +187,9 @@ popd
 %{python3_sitelib}/__pycache__/drv_libxml2.*
 
 %changelog
+* Sat Jul 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.12.5-10.3
+- Fix CVE-2026-11979 (RHEL-215571)
+
 * Tue Jun 16 2026 David King <dking@redhat.com> - 2.12.5-10.2
 - Fix CVE-2025-6170 (RHEL-182007)
 
