@@ -7,7 +7,7 @@
 
 Name:           libxml2
 Version:        2.9.7
-Release:        21%{?dist}.7
+Release:        21%{?dist}.9
 Summary:        Library providing XML and HTML support
 
 License:        MIT
@@ -93,6 +93,24 @@ Patch37:         libxml2-2.12.5-CVE-2025-6170.patch
 # https://gitlab.gnome.org/GNOME/libxml2/-/commit/c2e233fc1b341685fc99621b2768b503f777a72e
 # https://issues.redhat.com/browse/RHEL-215569
 Patch38:         libxml2-2.15.0-CVE-2026-11979.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/work_items/1058
+# https://redhat.atlassian.net/browse/RHEL-215616
+Patch39:         libxml2-2.9.7-CVE-2026-6653.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/67c34fe24e8b627138f95eb45a24d55547981c49
+# https://issues.redhat.com/browse/RHEL-256306
+Patch40:         libxml2-2.15.0-CVE-2026-86144.patch
+# https://github.com/GNOME/libxml2/commit/d1686f91dbda141a752200419d35639fd6b38340
+# https://issues.redhat.com/browse/RHEL-256021
+Patch41:         libxml2-2.15.4-CVE-2026-86140.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/046931e64e9e081e82c341f6455d070716fb8cf2
+# https://issues.redhat.com/browse/RHEL-255956
+Patch42:         libxml2-2.15.0-CVE-2026-74860.patch
+# https://github.com/GNOME/libxml2/commit/b06e036416129bfafb8c288e8d9a9727e1ba50c2
+# https://issues.redhat.com/browse/RHEL-256895
+Patch43:         libxml2-2.15.0-CVE-2026-86143.patch
+# https://github.com/GNOME/libxml2/commit/e41032ae9f94d0db2d1074eb68ac7d69bd9e0992
+# https://issues.redhat.com/browse/RHEL-256950
+Patch44:         libxml2-2.15.0-CVE-2026-86138.patch
 
 BuildRequires:  gcc
 BuildRequires:  cmake-rpm-macros
@@ -264,6 +282,19 @@ gzip -9 -c doc/libxml2-api.xml > doc/libxml2-api.xml.gz
 %{python3_sitearch}/libxml2mod.so
 
 %changelog
+* Tue Sep 22 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.9.7-21.9
+- Fix CVE-2026-86144 (RHEL-256306)
+- Fix CVE-2026-86140 (RHEL-256021)
+- Fix CVE-2026-74860 (RHEL-255956)
+- Fix CVE-2026-86143 (RHEL-256895)
+- Fix CVE-2026-86138 (RHEL-256950)
+
+* Fri Sep 18 2026 David King <dking@redhat.com> - 2.9.7-21.8
+- Lower xpath recursion limits (RHEL-249282)
+
+* Thu Sep 17 2026 David King <dking@redhat.com> - 2.9.7-21.8
+- Fix CVE-2026-6653 (RHEL-215616)
+
 * Mon Jul 27 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.9.7-21.7
 - Fix CVE-2026-11979 (RHEL-215569)
 
