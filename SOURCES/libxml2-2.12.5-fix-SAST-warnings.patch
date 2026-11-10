@@ -1,0 +1,726 @@
+From b8157e67fa288e46ec3857c88937435d4af90447 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 11:12:21 +0100
+Subject: [PATCH 01/19] schematron: fix memory leaks on error paths in
+ xmlSchematronParseRule
+
+Free allocated name and value before early returns in the let-variable
+parsing block. Previously, name was leaked when value was NULL or empty,
+and both name and value were leaked when XPath compilation failed.
+---
+ schematron.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/schematron.c b/schematron.c
+index a8259201..f3e75d7b 100644
+--- a/schematron.c
++++ b/schematron.c
+@@ -1005,12 +1005,14 @@ xmlSchematronParseRule(xmlSchematronParserCtxtPtr ctxt,
+                                   XML_SCHEMAP_NOROOT,
+                                   "let has no value attribute",
+                                   NULL, NULL);
++                xmlFree(name);
+                 return;
+             } else if (value[0] == 0) {
+                 xmlSchematronPErr(ctxt, cur,
+                                   XML_SCHEMAP_NOROOT,
+                                   "let has an empty value attribute",
+                                   NULL, NULL);
++                xmlFree(name);
+                 xmlFree(value);
+                 return;
+             }
+@@ -1021,6 +1023,8 @@ xmlSchematronParseRule(xmlSchematronParserCtxtPtr ctxt,
+                                   XML_SCHEMAP_NOROOT,
+                                   "Failed to compile let expression %s",
+                                   value, NULL);
++                xmlFree(name);
++                xmlFree(value);
+                 return;
+             }
+ 
+-- 
+2.55.0
+
+
+From 72de006c19cd3f2d779decd56a650de1ba6c0fc7 Mon Sep 17 00:00:00 2001
+From: mohammadmseet-hue <mohammadmseet@gmail.com>
+Date: Thu, 16 Apr 2026 02:54:24 +0200
+Subject: [PATCH 02/19] fix: add overflow checks to xmlDictAddQString in dict.c
+
+xmlDictAddString has overflow guards for pool size calculations, but its
+sibling xmlDictAddQString lacks these entirely. The namelen + plen + 1
+addition can overflow unsigned int, and 4 * (overflowed_value) produces
+a small allocation, leading to heap buffer overflow when memcpy writes
+the prefix and name.
+
+Add the same SIZE_MAX-based overflow guards and safe size_t cast.
+---
+ dict.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/dict.c b/dict.c
+index d7156ed3..ae0210ea 100644
+--- a/dict.c
++++ b/dict.c
+@@ -225,10 +225,21 @@ xmlDictAddQString(xmlDictPtr dict, const xmlChar *prefix, unsigned int plen,
+             return(NULL);
+         }
+ 
+-        if (size == 0) size = 1000;
+-	else size *= 4; /* exponential growth */
+-        if (size < 4 * (namelen + plen + 1))
+-	    size = 4 * (namelen + plen + 1); /* just in case ! */
++        if (size == 0) {
++            size = 1000;
++        } else {
++            if (size < (SIZE_MAX - sizeof(xmlDictStrings)) / 4)
++                size *= 4; /* exponential growth */
++            else
++                size = SIZE_MAX - sizeof(xmlDictStrings);
++        }
++        if (size / 4 < namelen + plen + 1) {
++            if ((size_t) namelen + plen + 1 <
++                    (SIZE_MAX - sizeof(xmlDictStrings)) / 4)
++                size = 4 * ((size_t) namelen + plen + 1); /* just in case ! */
++            else
++                return(NULL);
++        }
+ 	pool = (xmlDictStringsPtr) xmlMalloc(sizeof(xmlDictStrings) + size);
+ 	if (pool == NULL)
+ 	    return(NULL);
+-- 
+2.55.0
+
+
+From 2c457ecb0563f8f34ee5a21460e5f3ebc207b87d Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:45:15 +0100
+Subject: [PATCH 03/19] xpath: Check len before memcpy
+
+---
+ xpath.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/xpath.c b/xpath.c
+index 83e06526..853febb4 100644
+--- a/xpath.c
++++ b/xpath.c
+@@ -9195,6 +9195,8 @@ xmlXPathParseNameComplex(xmlXPathParserContextPtr ctxt, int qualified) {
+             if (len > XML_MAX_NAME_LENGTH) {
+                 XP_ERRORNULL(XPATH_EXPR_ERROR);
+             }
++	    if (len > (int) sizeof(buf))
++		len = (int) sizeof(buf);
+ 	    buffer = (xmlChar *) xmlMallocAtomic(max);
+ 	    if (buffer == NULL) {
+ 		XP_ERRORNULL(XPATH_MEMORY_ERROR);
+-- 
+2.55.0
+
+
+From 926c06ac177a6cc81659d96d08200861deeb5cf9 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:46:07 +0100
+Subject: [PATCH 04/19] nanoftp: avoid integer overflow
+
+---
+ nanoftp.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/nanoftp.c b/nanoftp.c
+index 8fbe7aac..9d5ae086 100644
+--- a/nanoftp.c
++++ b/nanoftp.c
+@@ -565,6 +565,8 @@ xmlNanoFTPGetMore(void *ctx) {
+         ctxt->controlFd = INVALID_SOCKET;
+         return(-1);
+     }
++    if (len > size)
++        len = size;
+     ctxt->controlBufUsed += len;
+     ctxt->controlBuf[ctxt->controlBufUsed] = 0;
+ 
+-- 
+2.55.0
+
+
+From b9a5613e401134f7120df28c73f218f9665e3b6c Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:46:42 +0100
+Subject: [PATCH 05/19] xmllint: Free doc in error path
+
+---
+ xmllint.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/xmllint.c b/xmllint.c
+index 21dbe7d2..41daa60f 100644
+--- a/xmllint.c
++++ b/xmllint.c
+@@ -2740,6 +2740,7 @@ static void parseAndPrintFile(char *filename, xmlParserCtxtPtr rectxt) {
+ 			"Couldn't allocate validation context\n");
+                 progresult = XMLLINT_ERR_MEM;
+                 xmlFreeDtd(dtd);
++                xmlFreeDoc(doc);
+                 return;
+ 	    }
+ 	    cvp->error    = xmlGenericError;
+-- 
+2.55.0
+
+
+From fb9a961de14ca73c9d2d3b9d35751deac9912a94 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:47:00 +0100
+Subject: [PATCH 06/19] nanohttp: Avoid integer underflow
+
+---
+ nanohttp.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/nanohttp.c b/nanohttp.c
+index 0d7af489..9e9e0d0e 100644
+--- a/nanohttp.c
++++ b/nanohttp.c
+@@ -431,8 +431,11 @@ xmlNanoHTTPSend(xmlNanoHTTPCtxtPtr ctxt, const char *xmt_ptr, int outlen)
+             int nsent = send(ctxt->fd, SEND_ARG2_CAST (xmt_ptr + total_sent),
+                              outlen - total_sent, 0);
+ 
+-            if (nsent > 0)
++            if (nsent > 0) {
++                if (nsent > outlen - total_sent)
++                    nsent = outlen - total_sent;
+                 total_sent += nsent;
++            }
+             else if ((nsent == -1) &&
+ #if defined(EAGAIN) && EAGAIN != EWOULDBLOCK
+                      (socket_errno() != EAGAIN) &&
+-- 
+2.55.0
+
+
+From 2a2e003159876258a3be6b7cd992777e0eacf407 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:47:57 +0100
+Subject: [PATCH 07/19] pattern: Make prefix alias ownership clearer
+
+---
+ pattern.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/pattern.c b/pattern.c
+index 55ae2d3e..c9b4ebec 100644
+--- a/pattern.c
++++ b/pattern.c
+@@ -909,6 +909,7 @@ static void
+ xmlCompileAttributeTest(xmlPatParserContextPtr ctxt) {
+     xmlChar *token = NULL;
+     xmlChar *name = NULL;
++    xmlChar *prefix = NULL;
+     xmlChar *URL = NULL;
+ 
+     SKIP_BLANKS;
+@@ -926,8 +927,9 @@ xmlCompileAttributeTest(xmlPatParserContextPtr ctxt) {
+     }
+     if (CUR == ':') {
+ 	int i;
+-	xmlChar *prefix = name;
+ 
++	prefix = name;
++	name = NULL;
+ 	NEXT;
+ 
+ 	if (IS_BLANK_CH(CUR)) {
+@@ -960,8 +962,8 @@ xmlCompileAttributeTest(xmlPatParserContextPtr ctxt) {
+ 		goto error;
+ 	    }
+ 	}
+-        XML_PAT_FREE_STRING(ctxt, name);
+-        name = NULL;
++        XML_PAT_FREE_STRING(ctxt, prefix);
++        prefix = NULL;
+ 	if (token == NULL) {
+ 	    if (CUR == '*') {
+ 		NEXT;
+@@ -980,6 +982,8 @@ xmlCompileAttributeTest(xmlPatParserContextPtr ctxt) {
+     }
+     return;
+ error:
++    if (prefix != NULL)
++	XML_PAT_FREE_STRING(ctxt, prefix);
+     if (name != NULL)
+ 	XML_PAT_FREE_STRING(ctxt, name);
+     if (URL != NULL)
+@@ -1003,6 +1007,7 @@ static void
+ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+     xmlChar *token = NULL;
+     xmlChar *name = NULL;
++    xmlChar *prefix = NULL;
+     xmlChar *URL = NULL;
+     int hasBlanks = 0;
+ 
+@@ -1051,9 +1056,10 @@ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+     if (CUR == ':') {
+ 	NEXT;
+ 	if (CUR != ':') {
+-	    xmlChar *prefix = name;
+ 	    int i;
+ 
++	    prefix = name;
++	    name = NULL;
+ 	    if (hasBlanks || IS_BLANK_CH(CUR)) {
+ 		ERROR5(NULL, NULL, NULL, "Invalid QName.\n", NULL);
+ 		ctxt->error = 1;
+@@ -1085,7 +1091,7 @@ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+ 		}
+ 	    }
+ 	    XML_PAT_FREE_STRING(ctxt, prefix);
+-	    name = NULL;
++	    prefix = NULL;
+ 	    if (token == NULL) {
+ 		if (CUR == '*') {
+ 		    NEXT;
+@@ -1117,9 +1123,10 @@ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+ 		    }
+ 		}
+ 		if (CUR == ':') {
+-		    xmlChar *prefix = name;
+ 		    int i;
+ 
++		    prefix = name;
++		    name = NULL;
+ 		    NEXT;
+ 		    if (IS_BLANK_CH(CUR)) {
+ 			ERROR5(NULL, NULL, NULL, "Invalid QName.\n", NULL);
+@@ -1152,7 +1159,7 @@ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+ 			}
+ 		    }
+ 		    XML_PAT_FREE_STRING(ctxt, prefix);
+-		    name = NULL;
++		    prefix = NULL;
+ 		    if (token == NULL) {
+ 			if (CUR == '*') {
+ 			    NEXT;
+@@ -1201,6 +1208,8 @@ xmlCompileStepPattern(xmlPatParserContextPtr ctxt) {
+     }
+     return;
+ error:
++    if (prefix != NULL)
++	XML_PAT_FREE_STRING(ctxt, prefix)
+     if (URL != NULL)
+ 	XML_PAT_FREE_STRING(ctxt, URL)
+     if (token != NULL)
+-- 
+2.55.0
+
+
+From dcd79112993df3433b9f5f368945cba869ca0fe7 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:55:54 +0100
+Subject: [PATCH 08/19] SAX2: Free prefix on error path
+
+---
+ SAX2.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/SAX2.c b/SAX2.c
+index ed21a559..7b788c55 100644
+--- a/SAX2.c
++++ b/SAX2.c
+@@ -689,6 +689,7 @@ xmlSAX2AttributeDecl(void *ctx, const xmlChar *elem, const xmlChar *fullname,
+         xmlFatalErrMsg(ctxt, XML_ERR_INTERNAL_ERROR,
+ 	     "SAX.xmlSAX2AttributeDecl(%s) called while not in subset\n",
+ 	               name, NULL);
++	xmlFree(prefix);
+ 	xmlFree(name);
+ 	xmlFreeEnumeration(tree);
+ 	return;
+-- 
+2.55.0
+
+
+From 9b0ab62da3f86fde239d7fc0701363a6f086732e Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:56:51 +0100
+Subject: [PATCH 09/19] SAX2: Track ownership of name
+
+---
+ SAX2.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/SAX2.c b/SAX2.c
+index 7b788c55..bf993584 100644
+--- a/SAX2.c
++++ b/SAX2.c
+@@ -1258,6 +1258,7 @@ xmlSAX2AttributeInternal(void *ctx, const xmlChar *fullname,
+ 
+     /* !!!!!! <a toto:arg="" xmlns:toto="http://toto.com"> */
+     ret = xmlNewNsPropEatName(ctxt->node, namespace, name, NULL);
++    name = NULL;
+     if (ret == NULL)
+         goto error;
+ 
+@@ -1354,6 +1355,8 @@ xmlSAX2AttributeInternal(void *ctx, const xmlChar *fullname,
+     }
+ 
+ error:
++    if (name != NULL)
++	xmlFree(name);
+     if (nval != NULL)
+ 	xmlFree(nval);
+     if (ns != NULL)
+-- 
+2.55.0
+
+
+From 8fc9c15a10527b9ce2ec9ca211a04b5f13285493 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:59:13 +0100
+Subject: [PATCH 10/19] SAX2: Check return of xmlAddChild
+
+---
+ SAX2.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/SAX2.c b/SAX2.c
+index bf993584..33e023c5 100644
+--- a/SAX2.c
++++ b/SAX2.c
+@@ -2518,8 +2518,8 @@ xmlSAX2Text(xmlParserCtxtPtr ctxt, const xmlChar *ch, int len,
+             } else
+                 lastChild = xmlNewCDataBlock(ctxt->myDoc, ch, len);
+ 	    if (lastChild != NULL) {
+-		xmlAddChild(ctxt->node, lastChild);
+-		if (ctxt->node->children != NULL) {
++		lastChild = xmlAddChild(ctxt->node, lastChild);
++		if (lastChild != NULL && ctxt->node->children != NULL) {
+ 		    ctxt->nodelen = len;
+ 		    ctxt->nodemem = len + 1;
+ 		}
+-- 
+2.55.0
+
+
+From a1fa8348e46e6e88a31aa4fb1859d7a6e22662eb Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 21:59:53 +0100
+Subject: [PATCH 11/19] catalog: Check return of xmlAddChild
+
+---
+ catalog.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/catalog.c b/catalog.c
+index 945ea2c8..f10c703d 100644
+--- a/catalog.c
++++ b/catalog.c
+@@ -682,7 +682,11 @@ BAD_CAST "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd");
+ 	return(-1);
+     }
+     catalog->nsDef = ns;
+-    xmlAddChild((xmlNodePtr) doc, catalog);
++    catalog = xmlAddChild((xmlNodePtr) doc, catalog);
++    if (catalog == NULL) {
++	xmlFreeDoc(doc);
++	return(-1);
++    }
+ 
+     xmlDumpXMLCatalogNode(catal, catalog, doc, ns, NULL);
+ 
+-- 
+2.55.0
+
+
+From a09f770a0835f6046f56ca4afd6059d97df1b030 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:00:11 +0100
+Subject: [PATCH 12/19] catalog: Free ret after copying to buffer
+
+---
+ catalog.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/catalog.c b/catalog.c
+index f10c703d..8d532509 100644
+--- a/catalog.c
++++ b/catalog.c
+@@ -3763,6 +3763,7 @@ xmlCatalogGetSystem(const xmlChar *sysID) {
+ 	if ((ret != NULL) && (ret != XML_CATAL_BREAK)) {
+ 	    snprintf((char *) result, sizeof(result) - 1, "%s", (char *) ret);
+ 	    result[sizeof(result) - 1] = 0;
++	    xmlFree(ret);
+ 	    return(result);
+ 	}
+     }
+@@ -3807,6 +3808,7 @@ xmlCatalogGetPublic(const xmlChar *pubID) {
+ 	if ((ret != NULL) && (ret != XML_CATAL_BREAK)) {
+ 	    snprintf((char *) result, sizeof(result) - 1, "%s", (char *) ret);
+ 	    result[sizeof(result) - 1] = 0;
++	    xmlFree(ret);
+ 	    return(result);
+ 	}
+     }
+-- 
+2.55.0
+
+
+From 5c294bc4749d0a4801d425efac6cd4ece97023d2 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:01:33 +0100
+Subject: [PATCH 13/19] parser: Check xmlAddChild return value
+
+---
+ parser.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/parser.c b/parser.c
+index b7534ae3..de1f7d85 100644
+--- a/parser.c
++++ b/parser.c
+@@ -7555,10 +7555,9 @@ xmlParseReference(xmlParserCtxtPtr ctxt) {
+ 		    if (nw != NULL) {
+ 			if (nw->_private == NULL)
+ 			    nw->_private = cur->_private;
+-			if (firstChild == NULL){
+-			    firstChild = nw;
+-			}
+ 			nw = xmlAddChild(ctxt->node, nw);
++			if (firstChild == NULL)
++			    firstChild = nw;
+ 		    }
+ 		    if (cur == ent->last) {
+ 			/*
+@@ -7601,14 +7600,16 @@ xmlParseReference(xmlParserCtxtPtr ctxt) {
+ 		    if (nw != NULL) {
+ 			if (nw->_private == NULL)
+ 			    nw->_private = cur->_private;
+-			if (firstChild == NULL){
+-			    firstChild = cur;
+-			}
+ 			xmlAddChild((xmlNodePtr) ent, nw);
+ 		    }
+-		    xmlAddChild(ctxt->node, cur);
+-		    if (cur == last)
+-			break;
++		    {
++			int isLast = (cur == last);
++			cur = xmlAddChild(ctxt->node, cur);
++			if (firstChild == NULL)
++			    firstChild = cur;
++			if (isLast)
++			    break;
++		    }
+ 		    cur = next;
+ 		}
+ 		if (ent->owner == 0)
+-- 
+2.55.0
+
+
+From 46499993c5ff13c9d1cd4ec1434e1a61fcef82b1 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:01:56 +0100
+Subject: [PATCH 14/19] parser: Avoid leak in xmlParseAttribute2
+
+---
+ parser.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/parser.c b/parser.c
+index de1f7d85..163b2d3f 100644
+--- a/parser.c
++++ b/parser.c
+@@ -9374,6 +9374,7 @@ xmlParseAttribute2(xmlParserCtxtPtr ctxt,
+          * Check that xml:space conforms to the specification
+          */
+         if (xmlStrEqual(name, BAD_CAST "space")) {
++            xmlFree(internal_val);
+             internal_val = xmlStrndup(val, *len);
+             if (xmlStrEqual(internal_val, BAD_CAST "default"))
+                 *(ctxt->space) = 0;
+-- 
+2.55.0
+
+
+From 5d0fccfd49e09693912bfb4a228252e2b16cc842 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:02:31 +0100
+Subject: [PATCH 15/19] parser: Check xmlAddChild return value
+
+---
+ parser.c | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/parser.c b/parser.c
+index 163b2d3f..73269eb1 100644
+--- a/parser.c
++++ b/parser.c
+@@ -12713,8 +12713,16 @@ xmlParseExternalEntityPrivate(xmlDocPtr doc, xmlParserCtxtPtr oldctxt,
+         xmlFreeDoc(newDoc);
+ 	return(XML_ERR_INTERNAL_ERROR);
+     }
+-    xmlAddChild((xmlNodePtr) newDoc, newRoot);
+-    nodePush(ctxt, newDoc->children);
++    newRoot = xmlAddChild((xmlNodePtr) newDoc, newRoot);
++    if (newRoot == NULL) {
++	if (sax != NULL)
++	xmlFreeParserCtxt(ctxt);
++	newDoc->intSubset = NULL;
++	newDoc->extSubset = NULL;
++        xmlFreeDoc(newDoc);
++	return(XML_ERR_INTERNAL_ERROR);
++    }
++    nodePush(ctxt, newRoot);
+     if (doc == NULL) {
+         ctxt->myDoc = newDoc;
+     } else {
+@@ -13435,7 +13443,16 @@ xmlParseBalancedChunkMemoryRecover(xmlDocPtr doc, xmlSAXHandlerPtr sax,
+         xmlFreeDoc(newDoc);
+ 	return(-1);
+     }
+-    xmlAddChild((xmlNodePtr) newDoc, newRoot);
++    newRoot = xmlAddChild((xmlNodePtr) newDoc, newRoot);
++    if (newRoot == NULL) {
++	if (sax != NULL)
++	    ctxt->sax = oldsax;
++	xmlFreeParserCtxt(ctxt);
++	newDoc->intSubset = NULL;
++	newDoc->extSubset = NULL;
++        xmlFreeDoc(newDoc);
++	return(-1);
++    }
+     nodePush(ctxt, newRoot);
+     /* doc == NULL is only supported for historic reasons */
+     if (doc == NULL) {
+-- 
+2.55.0
+
+
+From 80a0f51e62a6536086ab5eb16795f6f6d04c0dee Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:03:02 +0100
+Subject: [PATCH 16/19] tree: Check xmlAddChild return value
+
+---
+ tree.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tree.c b/tree.c
+index dc3ac4f9..8feb6c24 100644
+--- a/tree.c
++++ b/tree.c
+@@ -4317,11 +4317,11 @@ xmlStaticCopyNodeList(xmlNodePtr node, xmlDocPtr doc, xmlNodePtr parent) {
+ 		q->doc = doc;
+ 		q->parent = parent;
+ 		newSubset = (xmlDtdPtr) q;
+-		xmlAddChild(parent, q);
++		if (xmlAddChild(parent, q) == NULL) goto error;
+ 	    } else {
+                 linkedSubset = 1;
+ 		q = (xmlNodePtr) doc->intSubset;
+-		xmlAddChild(parent, q);
++		if (xmlAddChild(parent, q) == NULL) goto error;
+ 	    }
+ 	} else
+ #endif /* LIBXML_TREE_ENABLED */
+-- 
+2.55.0
+
+
+From aaff2f8350e4cc9d5ade09aa28f7baad074923a3 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:03:38 +0100
+Subject: [PATCH 17/19] tree: Handle NULL return from xmlStaticCopyNodeList
+
+---
+ tree.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/tree.c b/tree.c
+index 8feb6c24..f024f925 100644
+--- a/tree.c
++++ b/tree.c
+@@ -4552,6 +4552,10 @@ xmlCopyDoc(xmlDocPtr doc, int recursive) {
+ 
+ 	ret->children = xmlStaticCopyNodeList(doc->children, ret,
+ 		                               (xmlNodePtr)ret);
++	if (ret->children == NULL) {
++	    xmlFreeDoc(ret);
++	    return(NULL);
++	}
+ 	ret->last = NULL;
+ 	tmp = ret->children;
+ 	while (tmp != NULL) {
+-- 
+2.55.0
+
+
+From 31693e43829e23a85e3099c68707c53e51ed3cd4 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:04:41 +0100
+Subject: [PATCH 18/19] xmlschemastypes: Avoid leaking local and uri
+
+---
+ xmlschemastypes.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/xmlschemastypes.c b/xmlschemastypes.c
+index de95d940..04477b06 100644
+--- a/xmlschemastypes.c
++++ b/xmlschemastypes.c
+@@ -3090,8 +3090,10 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
+                         else if (val != NULL)
+                             uri = xmlStrdup(ns->href);
+                     }
+-                    if ((local != NULL) && ((val == NULL) || (ret != 0)))
++                    if ((local != NULL) && ((val == NULL) || (ret != 0))) {
+                         xmlFree(local);
++                        local = NULL;
++                    }
+                     if (prefix != NULL)
+                         xmlFree(prefix);
+                 }
+@@ -3122,6 +3124,11 @@ xmlSchemaValAtomicType(xmlSchemaTypePtr type, const xmlChar * value,
+                             xmlFree(uri);
+                         goto error;
+                     }
++                } else {
++                    if (local != NULL)
++                        xmlFree(local);
++                    if (uri != NULL)
++                        xmlFree(uri);
+                 }
+                 goto done;
+             }
+-- 
+2.55.0
+
+
+From 57759cb3065b81dbd27428aa74f3b3d445c8ad54 Mon Sep 17 00:00:00 2001
+From: David King <dking@redhat.com>
+Date: Fri, 24 Jul 2026 22:05:11 +0100
+Subject: [PATCH 19/19] xmlschemastypes: Remove redundant if
+
+---
+ xmlschemastypes.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/xmlschemastypes.c b/xmlschemastypes.c
+index 04477b06..11a5363e 100644
+--- a/xmlschemastypes.c
++++ b/xmlschemastypes.c
+@@ -5052,9 +5052,7 @@ xmlSchemaCompareValuesInternal(xmlSchemaValType xtype,
+ 	    * TODO: Compare those against QName.
+ 	    */
+ 	    if (ytype == XML_SCHEMAS_QNAME) {
+-		TODO
+-		if (y == NULL)
+-		    return(-2);
++		/* TODO */
+ 		return (-2);
+ 	    }
+             if ((ytype == XML_SCHEMAS_ANYSIMPLETYPE) ||
+-- 
+2.55.0
+

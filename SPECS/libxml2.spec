@@ -1,6 +1,6 @@
 Name:           libxml2
 Version:        2.12.5
-Release:        10%{?dist}.4
+Release:        15%{?dist}
 Summary:        Library providing XML and HTML support
 
 # list.c, dict.c and few others use ISC-Veillard
@@ -39,32 +39,13 @@ Patch9:         libxml2-2.12.5-CVE-2025-32415.patch
 Patch10:        libxml2-2.12.5-CVE-2025-32414.patch
 # https://issues.redhat.com/browse/RHEL-126768
 Patch11:        libxml2-2.12.5-xmllint-error-code.patch
-# https://redhat.atlassian.net/browse/RHEL-177890
+# https://redhat.atlassian.net/browse/RHEL-36782
 Patch12:        libxml2-2.12.5-CVE-2024-34459.patch
 # https://gitlab.gnome.org/GNOME/libxml2/-/merge_requests/321
-# https://redhat.atlassian.net/browse/RHEL-182007
+# https://redhat.atlassian.net/browse/RHEL-186743
 Patch13:        libxml2-2.12.5-CVE-2025-6170.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/c2e233fc1b341685fc99621b2768b503f777a72e
-# https://issues.redhat.com/browse/RHEL-215571
-Patch14:        libxml2-2.12.5-CVE-2026-11979.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/b63cd517afecb76582dd9488c55e54ceaf50de61
-# https://issues.redhat.com/browse/RHEL-256302
-Patch15:        libxml2-2.12.5-CVE-2026-86144.patch
-# https://github.com/GNOME/libxml2/commit/d1686f91dbda141a752200419d35639fd6b38340
-# https://issues.redhat.com/browse/RHEL-256024
-Patch16:        libxml2-2.12.5-CVE-2026-86140.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/046931e64e9e081e82c341f6455d070716fb8cf2
-# https://issues.redhat.com/browse/RHEL-255957
-Patch17:        libxml2-2.12.5-CVE-2026-74860.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/595d7d8f6aac7f8374ad73ebe66479d1316f81a8
-# https://issues.redhat.com/browse/RHEL-256368
-Patch18:        libxml2-2.12.5-CVE-2026-86142.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/b06e036416129bfafb8c288e8d9a9727e1ba50c2
-# https://issues.redhat.com/browse/RHEL-256896
-Patch19:        libxml2-2.12.5-CVE-2026-86143.patch
-# https://github.com/GNOME/libxml2/commit/a4cba4b5b5a8c42e155ed42d2d2a44955465a2e4
-# https://issues.redhat.com/browse/RHEL-256948
-Patch20:        libxml2-2.12.5-CVE-2026-86138.patch
+# https://redhat.atlassian.net/browse/RHEL-45047
+Patch14:        libxml2-2.12.5-fix-SAST-warnings.patch
 
 BuildRequires:  cmake-rpm-macros
 BuildRequires:  gcc
@@ -205,22 +186,20 @@ popd
 %{python3_sitelib}/__pycache__/drv_libxml2.*
 
 %changelog
-* Tue Sep 08 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.12.5-10.4
-- Fix CVE-2026-86144 (RHEL-256302)
-- Fix CVE-2026-86140 (RHEL-256024)
-- Fix CVE-2026-74860 (RHEL-255957)
-- Fix CVE-2026-86142 (RHEL-256368)
-- Fix CVE-2026-86143 (RHEL-256896)
-- Fix CVE-2026-86138 (RHEL-256948)
+* Fri Jul 24 2026 David King <dking@redhat.com> - 2.12.5-15
+- Fix some SAST warnings (RHEL-45047)
 
-* Sat Jul 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.12.5-10.3
-- Fix CVE-2026-11979 (RHEL-215571)
+* Tue Jun 16 2026 David King <dking@redhat.com> - 2.12.5-14
+- Fix CVE-2025-6170 (RHEL-186743)
 
-* Tue Jun 16 2026 David King <dking@redhat.com> - 2.12.5-10.2
-- Fix CVE-2025-6170 (RHEL-182007)
+* Wed Jun 03 2026 David King <dking@redhat.com> - 2.12.5-13
+- Revert parser error fix (RHEL-126803)
 
-* Mon May 18 2026 David King <dking@redhat.com> - 2.12.5-10.1
-- Fix CVE-2024-34459 (RHEL-177890)
+* Sat May 30 2026 David King <dking@redhat.com> - 2.12.5-12
+- Fix parser error (RHEL-126803)
+
+* Mon May 18 2026 David King <dking@redhat.com> - 2.12.5-11
+- Fix CVE-2024-34459 (RHEL-36782)
 
 * Mon Jan 26 2026 David King <dking@redhat.com> - 2.12.5-10
 - Fix xmllint error code (RHEL-126768)
