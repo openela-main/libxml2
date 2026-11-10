@@ -1,6 +1,6 @@
 Name:           libxml2
 Version:        2.9.13
-Release:        14%{?dist}.5
+Release:        16%{?dist}
 Summary:        Library providing XML and HTML support
 
 License:        MIT
@@ -43,35 +43,11 @@ Patch16:         libxml2-2.12.5-CVE-2025-32415.patch
 Patch17:         libxml2-2.9.13-CVE-2025-32414.patch
 # https://issues.redhat.com/browse/RHEL-119283
 Patch18:        RHEL-119283.patch
-# https://redhat.atlassian.net/browse/RHEL-177882
+# https://redhat.atlassian.net/browse/RHEL-36406
 Patch19:        libxml2-2.9.13-CVE-2024-34459.patch
 # https://gitlab.gnome.org/GNOME/libxml2/-/merge_requests/321
-# https://redhat.atlassian.net/browse/RHEL-182016
+# https://redhat.atlassian.net/browse/RHEL-186744
 Patch20:        libxml2-2.12.5-CVE-2025-6170.patch
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/463bbeeca1805b5c4828f50d0fefc4eebaf620df
-# https://issues.redhat.com/browse/RHEL-215619
-Patch21:        libxml2-2.9.13-CVE-2026-6653.patch
-# https://issues.redhat.com/browse/RHEL-215568
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/c2e233fc1b341685fc99621b2768b503f777a72e
-Patch22:        libxml2-2.9.13-CVE-2026-11979.patch
-# https://issues.redhat.com/browse/RHEL-256304
-# https://github.com/GNOME/libxml2/commit/b63cd517afecb76582dd9488c55e54ceaf50de61
-Patch23:        libxml2-2.9.13-CVE-2026-86144.patch
-# https://issues.redhat.com/browse/RHEL-256027
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/61e5f3ea97609bb221a355579d2285ddd28d90d2.patch
-Patch24:        libxml2-2.9.13-CVE-2026-86140.patch
-# https://issues.redhat.com/browse/RHEL-256120
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/046931e64e9e081e82c341f6455d070716fb8cf2.patch
-Patch25:        libxml2-2.9.13-CVE-2026-74860.patch
-# https://issues.redhat.com/browse/RHEL-256365
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/595d7d8f6aac7f8374ad73ebe66479d1316f81a8.patch
-Patch26:        libxml2-2.9.13-CVE-2026-86142.patch
-# https://issues.redhat.com/browse/RHEL-256901
-# https://gitlab.gnome.org/GNOME/libxml2/-/commit/90f293ba74d28b1d570920382e707586f68ebf35
-Patch27:        libxml2-2.9.13-CVE-2026-86143.patch
-# https://issues.redhat.com/browse/RHEL-256953
-# https://github.com/GNOME/libxml2/commit/e41032ae9f94d0db2d1074eb68ac7d69bd9e0992
-Patch28:        libxml2-2.9.13-CVE-2026-86138.patch
 
 BuildRequires:  cmake-rpm-macros
 BuildRequires:  gcc
@@ -200,25 +176,11 @@ gzip -9 -c doc/libxml2-api.xml > doc/libxml2-api.xml.gz
 %{python3_sitearch}/libxml2mod.so
 
 %changelog
-* Tue Sep 08 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.9.13-14.5
-- Fix CVE-2026-86144 (RHEL-256304)
-- Fix CVE-2026-86140 (RHEL-256027)
-- Fix CVE-2026-74860 (RHEL-256120)
-- Fix CVE-2026-86142 (RHEL-256365)
-- Fix CVE-2026-86143 (RHEL-256901)
-- Fix CVE-2026-86138 (RHEL-256953)
+* Tue Jun 16 2026 David King <dking@redhat.com> - 2.9.13-16
+- Fix CVE-2025-6170 (RHEL-186744)
 
-* Mon Jul 27 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.9.13-14.4
-- Fix CVE-2026-11979 (RHEL-215568)
-
-* Mon Jul 27 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.9.13-14.3
-- Fix CVE-2026-6653 (RHEL-215619)
-
-* Tue Jun 16 2026 David King <dking@redhat.com> - 2.9.13-14.2
-- Fix CVE-2025-6170 (RHEL-182016)
-
-* Mon May 18 2026 David King <dking@redhat.com> - 2.9.13-14.1
-- Fix CVE-2024-34459 (RHEL-177882)
+* Mon May 18 2026 David King <dking@redhat.com> - 2.9.13-15
+- Fix CVE-2024-34459 (RHEL-36406)
 
 * Tue Nov 13 2025 Laura Barcziova <lbarczio@redhat.com> - 2.9.13-14
 - Rebuilt for the correct target in RHEL (9.7-z) (RHEL-119283)
