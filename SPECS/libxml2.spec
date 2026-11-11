@@ -1,6 +1,6 @@
 Name:           libxml2
 Version:        2.12.5
-Release:        15%{?dist}
+Release:        15%{?dist}.2
 Summary:        Library providing XML and HTML support
 
 # list.c, dict.c and few others use ISC-Veillard
@@ -46,6 +46,24 @@ Patch12:        libxml2-2.12.5-CVE-2024-34459.patch
 Patch13:        libxml2-2.12.5-CVE-2025-6170.patch
 # https://redhat.atlassian.net/browse/RHEL-45047
 Patch14:        libxml2-2.12.5-fix-SAST-warnings.patch
+# https://github.com/GNOME/libxml2/commit/67c34fe24e8b627138f95eb45a24d55547981c49
+# https://issues.redhat.com/browse/RHEL-256305
+Patch15:        libxml2-2.12.5-CVE-2026-86144.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/b06e036416129bfafb8c288e8d9a9727e1ba50c2
+# https://issues.redhat.com/browse/RHEL-256899
+Patch16:        libxml2-2.12.5-CVE-2026-86143.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/595d7d8f6aac7f8374ad73ebe66479d1316f81a8
+# https://issues.redhat.com/browse/RHEL-256367
+Patch17:        libxml2-2.12.5-CVE-2026-86142.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/61e5f3ea97609bb221a355579d2285ddd28d90d2
+# https://issues.redhat.com/browse/RHEL-256020
+Patch18:        libxml2-2.12.5-CVE-2026-86140.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/046931e64e9e081e82c341f6455d070716fb8cf2
+# https://issues.redhat.com/browse/RHEL-255961
+Patch19:        libxml2-2.12.5-CVE-2026-74860.patch
+# https://gitlab.gnome.org/GNOME/libxml2/-/commit/c2e233fc1b341685fc99621b2768b503f777a72e
+# https://redhat.atlassian.net/browse/RHEL-215570
+Patch20:        libxml2-2.12.5-CVE-2026-11979.patch
 
 BuildRequires:  cmake-rpm-macros
 BuildRequires:  gcc
@@ -186,6 +204,16 @@ popd
 %{python3_sitelib}/__pycache__/drv_libxml2.*
 
 %changelog
+* Tue Oct 13 2026 David King <dking@redhat.com> - 2.12.5-15.2
+- Fix CVE-2026-11979 (RHEL-215570)
+
+* Wed Sep 16 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2.12.5-15.1
+- Fix CVE-2026-86144 (RHEL-256305)
+- Fix CVE-2026-86143 (RHEL-256899)
+- Fix CVE-2026-86142 (RHEL-256367)
+- Fix CVE-2026-86140 (RHEL-256020)
+- Fix CVE-2026-74860 (RHEL-255961)
+
 * Fri Jul 24 2026 David King <dking@redhat.com> - 2.12.5-15
 - Fix some SAST warnings (RHEL-45047)
 
